@@ -1,0 +1,49 @@
+import sqlite3
+class FDataBase:
+    def __init__(self, db):
+        self.__db = db
+        self.__cur = db.cursor() #создаем класс курсора
+
+    def getMenu(self):
+        sql = '''SELECT * FROM mainmenu''' #выборка всех данных из таблицы
+        try:
+            self.__cur.execute(sql)
+            res = self.__cur.fetchall() #если произойдтет ошибка, то будет возвращен пустой список
+            if res:
+                return res
+        except:
+            print("Mistake reading from db")
+        return []
+
+    def updateN(self, name):
+        try:
+            #binary = sqlite3.Binary(name)
+            self.__cur.execute("""INSERT INTO images(name) VALUES(?)""", name)
+            self.__db.commit()
+        except sqlite3.Error as e:
+            print("Mistake of uploading into DB: "+str(e))
+            return False
+        return True
+
+    def getFile(self, id):
+        try:
+            self.__cur.execute(f"SELECT name FROM images WHERE id = {id}")
+            res = self.__cur.fetchone()
+            if res:
+                return res
+        except sqlite3.Error as e:
+            print("Mistake of s")
+        return False
+    def getAllFiles(self):
+        try:
+            self.__cur.execute(f"SELECT id, name FROM images")
+            res = self.__cur.fetchall()
+            if res:
+                return res
+        except sqlite3.Error as e:
+             print("Miss")
+        return []
+
+
+
+
