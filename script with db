@@ -1,0 +1,100 @@
+import sqlite3
+import os
+from flask import Flask, render_template, request, g, url_for, flash, session, redirect, abort
+from FDataBase import FDataBase
+DATABASE = '/tmp/flsite.db'
+DEBUG = True
+SECRET_KEY = 'ffdfbdfbdn'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+
+
+app = Flask(__name__)
+app.config.from_object(__name__)
+
+app.config.update(dict(DATABASE=os.path.join(app.root_path, 'flsite.db')))
+
+def connect_db():
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def create_db():
+    db = connect_db()
+    with app.open_resource('sq_db.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+    db.close()
+
+def get_db():
+    if not hasattr(g, 'link_db'):
+        g.link_db = connect_db()
+    return g.link_db
+
+dbase = None
+@app.before_request #утссновление соединения с бд перед запросом
+def before_request():
+    global dbase #чтобы была доступна во всех запросах
+    db = get_db()
+    dbase = FDataBase(db)
+
+@app.teardown_appcontext
+def close_db(error):
+    if hasattr(g, 'link_db'):
+        g.link_db.close()
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+#@app.route('/')
+#def index():
+#    return render_template('base.html', title='lol', menu=[])
+
+#@app.route('/login')
+#def login():
+ #   return render_template("login.html", menu=[])
+
+#@app.route('/register')
+#def register():
+ #   return render_template("register.html", menu=[])
+
+#upload image
+@app.route('/', methods=["POST", "GET"])
+def upload():
+    db = get_db()
+    dbase = FDataBase(db)
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash("Can't read the file")
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            try:
+                with open(file.filename, 'rb') as file:
+                    img = file.read()
+                res = dbase.updateN(img)
+                if not res:
+                    flash("Mistake", "error")
+                    return render_template('upload.html')
+                flash("good", "success")
+                return render_template('upload.html', files=dbase.getAllFiles())
+            except FileNotFoundError as e:
+                flash("mistake of reading file", "error")
+        else:
+            flash("Mistake of uploading", "error")
+    return render_template('upload.html', files=dbase.getAllFiles())
+
+@app.route("/upload/<id>")
+def show_file(name):
+    db = get_db()
+    dbase = FDataBase(db)
+    name = dbase.getFile(id)
+    return render_template('file.html', name=name)
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0')
+
+
