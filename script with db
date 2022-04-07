@@ -13,11 +13,13 @@ app.config.from_object(__name__)
 
 app.config.update(dict(DATABASE=os.path.join(app.root_path, 'flsite.db')))
 
+#подключение к базе данных
 def connect_db():
     conn = sqlite3.connect(app.config['DATABASE'])
     conn.row_factory = sqlite3.Row
     return conn
 
+#создание базы данных
 def create_db():
     db = connect_db()
     with app.open_resource('sq_db.sql', mode='r') as f:
@@ -25,18 +27,21 @@ def create_db():
     db.commit()
     db.close()
 
+#взятие базы
 def get_db():
     if not hasattr(g, 'link_db'):
         g.link_db = connect_db()
     return g.link_db
 
 dbase = None
-@app.before_request #утссновление соединения с бд перед запросом
+@app.before_request #установление соединения с бд перед запросом
 def before_request():
     global dbase #чтобы была доступна во всех запросах
     db = get_db()
     dbase = FDataBase(db)
 
+
+#закрытие
 @app.teardown_appcontext
 def close_db(error):
     if hasattr(g, 'link_db'):
@@ -45,23 +50,12 @@ def close_db(error):
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-#@app.route('/')
-#def index():
-#    return render_template('base.html', title='lol', menu=[])
 
-#@app.route('/login')
-#def login():
- #   return render_template("login.html", menu=[])
-
-#@app.route('/register')
-#def register():
- #   return render_template("register.html", menu=[])
-
-#upload image
+#upload image (это тебе не нужно, но тут есть как раз использование класса)
 @app.route('/', methods=["POST", "GET"])
 def upload():
     db = get_db()
-    dbase = FDataBase(db)
+    dbase = FDataBase(db) #вот здесь используется класс
     if request.method == 'POST':
         if 'file' not in request.files:
             flash("Can't read the file")
@@ -74,7 +68,7 @@ def upload():
             try:
                 with open(file.filename, 'rb') as file:
                     img = file.read()
-                res = dbase.updateN(img)
+                res = dbase.updateN(img) #здесь тоже, обращение к методу класса
                 if not res:
                     flash("Mistake", "error")
                     return render_template('upload.html')
@@ -89,7 +83,7 @@ def upload():
 @app.route("/upload/<id>")
 def show_file(name):
     db = get_db()
-    dbase = FDataBase(db)
+    dbase = FDataBase(db) #опять работа с классом
     name = dbase.getFile(id)
     return render_template('file.html', name=name)
 
